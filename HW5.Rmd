@@ -1,0 +1,108 @@
+---
+title: "Homework 5"
+author: "105304028_統計四_方品謙"
+output:
+  html_document:
+    df_print: paged
+---
+## time series
+#### 1. 資料讀取 
+##### 將資料分為澳、中、日、英，時間為訓練集1998 Q4 - 2010 Q4及預測集2011 Q1 - 2011 Q4
+```{r}
+visitor <- read.csv("visitors.csv")
+for (i in 2:5){
+ assign( paste0(names(visitor)[i], "_train"), ts(visitor[-c(50:54),i], frequency = 4, start = c(1998,4))  )
+   assign( paste0(names(visitor)[i], "_test"), ts(visitor[50:53,i], frequency = 4, start = c(2011,1))  )
+}
+```
+
+#### 時間序列資料
+```{r}
+ts.plot(visitor)
+```
+
+```{r}
+decompose_a <- decompose(Australia_train, type="mult")
+plot(decompose_a)
+decompose_b <- decompose(China_train, type="mult")
+plot(decompose_b)
+decompose_c <- decompose(Japan_train, type="mult")
+plot(decompose_c)
+decompose_d <- decompose(United.Kingdom_train, type="mult")
+plot(decompose_d)
+```
+
+#### 平穩
+```{r}
+dnhtemp_a <- diff(Australia_train , differences = 1)
+adf.test(dnhtemp_a)
+dnhtemp_b <- diff(China_train , differences = 3)
+adf.test(dnhtemp_b)
+dnhtemp_c <- diff(Japan_train , differences = 2)
+adf.test(dnhtemp_c)
+dnhtemp_d <- diff(United.Kingdom_train , differences = 1)
+adf.test(dnhtemp_d)
+
+```
+
+各國差分後adf.test皆顯著，代表資料皆平穩，可以進行下一步。
+
+#### 白干擾檢測
+```{r}
+Box.test(Australia_train,12,"Ljung")
+Box.test(Chian_train,12,"Ljung")
+Box.test(Japan_train,12,"Ljung")
+Box.test(United.Kingom_train,12,"Ljung")
+```
+利用Box.test都是顯著，代表四個國家的資料皆不屬於白干擾，繼續使用acf與pacf分析。
+
+#### 畫ACF, PACF
+```{r}
+tsdisplay(dnhtemp_a , lag.max = 30)
+tsdisplay(dnhtemp_b , lag.max = 30)
+tsdisplay(dnhtemp_c , lag.max = 30)
+tsdisplay(dnhtemp_d , lag.max = 30)
+```
+
+#### ARIMA model & est. coefficients
+```{r}
+ma1 = arima(Australia_train,order=c(3,1,24))
+ma2 = arima(China_train,order=c(3,3,24))
+ma3 = arima(Japan_train,order=c(3,2,28))
+ma4 = arima(United.Kingdom_train,order=c(3,1,20))
+ma1 %>% forecast(4) %>% autoplot
+ma2 %>% forecast(4) %>% autoplot
+ma3 %>% forecast(4) %>% autoplot
+ma4 %>% forecast(4) %>% autoplot
+```
+#### 模型診斷
+```{r}
+tsdiag(ma1,gof=5,omit.initial=F) 
+tsdiag(ma2,gof=5,omit.initial=F) 
+tsdiag(ma3,gof=5,omit.initial=F) 
+tsdiag(ma4,gof=5,omit.initial=F) 
+```
+
+四個模型做Box.test皆為不顯著，代表模型可行。
+
+#### 預測未來
+```{r}
+pre1 = ma1 %>% forecast(4)
+pre2 = ma2 %>% forecast(4)
+pre3 = ma3 %>% forecast(4) 
+pre4 = ma4 %>% forecast(4) 
+accuracy( pre1$mean , Australia_test) #can get RMSE MAE MAPE MASE...
+accuracy( pre2$mean , China_test)
+accuracy( pre3$mean , Japan_test)
+accuracy( pre4$mean , United.Kingdom_test)
+```
+
+```{r}
+ks.test( pre1$mean , Australia_test  )
+ks.test( pre2$mean , China_test  )
+ks.test( pre3$mean , Japan_test  )
+ks.test( pre4$mean , United.Kingdom_test  )
+```
+
+最後利用t檢定可以發現預測值與真實值皆不顯著，代表預測結果與
+
